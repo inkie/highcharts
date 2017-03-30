@@ -1,5 +1,5 @@
 /**
- * (c) 2010-2016 Torstein Honsi
+ * (c) 2010-2017 Torstein Honsi
  *
  * License: www.highcharts.com/license
  */
@@ -96,7 +96,6 @@ Chart.prototype = {
 		options = merge(defaultOptions, userOptions); // do the merge
 		options.series = userOptions.series = seriesOptions; // set back the series data
 		this.userOptions = userOptions;
-		this.respRules = [];
 
 		var optionsChart = options.chart;
 
@@ -242,8 +241,7 @@ Chart.prototype = {
 			hasDirtyStacks,
 			hasCartesianSeries = chart.hasCartesianSeries,
 			isDirtyBox = chart.isDirtyBox,
-			seriesLength = series.length,
-			i = seriesLength,
+			i,
 			serie,
 			renderer = chart.renderer,
 			isHiddenChart = renderer.isHidden(),
@@ -264,6 +262,7 @@ Chart.prototype = {
 		chart.layOutTitles();
 
 		// link stacked series
+		i = series.length;
 		while (i--) {
 			serie = series[i];
 
@@ -277,7 +276,7 @@ Chart.prototype = {
 			}
 		}
 		if (hasDirtyStacks) { // mark others as dirty
-			i = seriesLength;
+			i = series.length;
 			while (i--) {
 				serie = series[i];
 				if (serie.options.stacking) {
@@ -356,6 +355,9 @@ Chart.prototype = {
 			chart.drawChartBox();
 		}
 
+		// Fire an event before redrawing series, used by the boost module to
+		// clear previous series renderings.
+		fireEvent(chart, 'predraw');
 
 		// redraw affected series
 		each(series, function (serie) {
@@ -375,8 +377,9 @@ Chart.prototype = {
 		// redraw if canvas
 		renderer.draw();
 
-		// fire the event
+		// Fire the events
 		fireEvent(chart, 'redraw');
+		fireEvent(chart, 'render');
 
 		if (isHiddenChart) {
 			chart.cloneRenderTo(true);
@@ -551,7 +554,8 @@ Chart.prototype = {
 	},
 
 	/**
-	 * Lay out the chart titles and cache the full offset height for use in getMargins
+	 * Lay out the chart titles and cache the full offset height for use
+	 * in getMargins
 	 */
 	layOutTitles: function (redraw) {
 		var titleOffset = 0,
@@ -572,13 +576,20 @@ Chart.prototype = {
 				titleSize = renderer.fontMetrics(titleSize, title).b;
 				
 				title
-					.css({ width: (titleOptions.width || spacingBox.width + titleOptions.widthAdjust) + 'px' })
+					.css({
+						width: (titleOptions.width ||
+							spacingBox.width + titleOptions.widthAdjust) + 'px'
+					})
 					.align(extend({ 
 						y: titleOffset + titleSize + (key === 'title' ? -3 : 2)
 					}, titleOptions), false, 'spacingBox');
 
 				if (!titleOptions.floating && !titleOptions.verticalAlign) {
-					titleOffset = Math.ceil(titleOffset + title.getBBox().height);
+					titleOffset = Math.ceil(
+						titleOffset +
+						// Skip the cache for HTML (#3481)
+						title.getBBox(titleOptions.useHTML).height
+					);
 				}
 			}
 		}, this);
@@ -613,10 +624,17 @@ Chart.prototype = {
 			chart.containerHeight = getStyle(renderTo, 'height');
 		}
 		
-		chart.chartWidth = Math.max(0, widthOption || chart.containerWidth || 600); // #1393, 1460
-		chart.chartHeight = Math.max(0, pick(heightOption,
-			// the offsetHeight of an empty container is 0 in standard browsers, but 19 in IE7:
-			chart.containerHeight > 19 ? chart.containerHeight : 400));
+		chart.chartWidth = Math.max( // #1393
+			0,
+			widthOption || chart.containerWidth || 600 // #1460
+		);
+		chart.chartHeight = Math.max(
+			0,
+			H.relativeLength(
+				heightOption,
+				chart.chartWidth
+			) || chart.containerHeight || 400
+		);
 	},
 
 	/**
@@ -1558,9 +1576,6 @@ Chart.prototype = {
 
 		chart.render();
 
-		// add canvas
-		chart.renderer.draw();
-		
 		// Fire the load event if there are no external images
 		if (!chart.renderer.imgCount && chart.onload) {
 			chart.onload();
@@ -1584,6 +1599,8 @@ Chart.prototype = {
 		}, this);
 
 		fireEvent(this, 'load');
+		fireEvent(this, 'render');
+		
 
 		// Set up auto resize, check for not destroyed (#6068)
 		if (defined(this.index) && this.options.chart.reflow !== false) {

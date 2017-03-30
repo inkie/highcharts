@@ -27,10 +27,47 @@ const getProductVersion = () => {
  */
 const getFileOptions = (base) => {
     const B = require('./assembler/build.js');
-    const DS = '[\\\\\\\/][^\\\\\\\/]'; // Regex: Single directory seperator
+    const DS = '[\\\\\\\/]';
+    const NOTDS = '[^\\\\\\\/]';
+    const SINGLEDS = DS + NOTDS; // Regex: Single directory seperator
     const folders = {
-        'parts': 'parts' + DS + '+\.js$',
-        'parts-more': 'parts-more' + DS + '+\.js$'
+        'parts': 'parts' + SINGLEDS + '+\.js$',
+        'parts-more': 'parts-more' + SINGLEDS + '+\.js$',
+        'highchartsFiles': [
+            'parts' + DS + 'Globals\.js$',
+            'parts' + DS + 'SvgRenderer\.js$',
+            'parts' + DS + 'Html\.js$',
+            'parts' + DS + 'VmlRenderer\.js$',
+            'parts' + DS + 'Axis\.js$',
+            'parts' + DS + 'DateTimeAxis\.js$',
+            'parts' + DS + 'LogarithmicAxis\.js$',
+            'parts' + DS + 'Tooltip\.js$',
+            'parts' + DS + 'Pointer\.js$',
+            'parts' + DS + 'TouchPointer\.js$',
+            'parts' + DS + 'MSPointer\.js$',
+            'parts' + DS + 'Legend\.js$',
+            'parts' + DS + 'Chart\.js$',
+            'parts' + DS + 'Stacking\.js$',
+            'parts' + DS + 'Dynamics\.js$',
+            'parts' + DS + 'AreaSeries\.js$',
+            'parts' + DS + 'SplineSeries\.js$',
+            'parts' + DS + 'AreaSplineSeries\.js$',
+            'parts' + DS + 'ColumnSeries\.js$',
+            'parts' + DS + 'BarSeries\.js$',
+            'parts' + DS + 'ScatterSeries\.js$',
+            'parts' + DS + 'PieSeries\.js$',
+            'parts' + DS + 'DataLabels\.js$',
+            'modules' + DS + 'overlapping-datalabels.src\.js$',
+            'parts' + DS + 'Interaction\.js$',
+            'parts' + DS + 'Responsive\.js$',
+            'parts' + DS + 'Color\.js$',
+            'parts' + DS + 'Options\.js$',
+            'parts' + DS + 'PlotLineOrBand\.js$',
+            'parts' + DS + 'Tick\.js$',
+            'parts' + DS + 'Point\.js$',
+            'parts' + DS + 'Series\.js$',
+            'parts' + DS + 'Utilities\.js$'
+        ]
     };
 
     // Modules should not be standalone, and they should exclude all parts files.
@@ -53,6 +90,7 @@ const getFileOptions = (base) => {
     fileOptions['modules/solid-gauge.src.js'].exclude = new RegExp([folders.parts, 'GaugeSeries\.js$'].join('|'));
     fileOptions['modules/map.src.js'].product = 'Highmaps';
     fileOptions['modules/map-parser.src.js'].product = 'Highmaps';
+    fileOptions['modules/stock.src.js'].exclude = new RegExp(folders.highchartsFiles.join('|'));
     Object.assign(fileOptions, {
         'highcharts-more.src.js': {
             exclude: new RegExp(folders.parts),
@@ -112,10 +150,23 @@ const buildModules = () => {
 };
 
 const styles = () => {
-    const sass = require('gulp-sass');
-    gulp.src('./css/*.scss')
-        .pipe(sass({ outputStyle: 'expanded' }).on('error', sass.logError))
-        .pipe(gulp.dest('./code/css/'));
+    const sass = require('node-sass');
+    const U = require('./assembler/utilities.js');
+    const fileName = 'highcharts';
+    return new Promise((resolve, reject) => {
+        sass.render({
+            file: './css/' + fileName + '.scss',
+            outputStyle: 'expanded'
+        }, (err, result) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                U.writeFile('./code/css/' + fileName + '.css', result.css);
+                resolve();
+            }
+        });
+    });
 };
 
 /**
@@ -331,7 +382,7 @@ const compileScripts = () => {
  */
 const compileLib = () => {
     const sourceFolder = './vendor/';
-    const files = ['canvg.src.js'];
+    const files = ['canvg.src.js', 'rgbcolor.src.js'];
     return compile(files, sourceFolder)
         .then(console.log)
         .catch(console.log);
@@ -392,8 +443,18 @@ const copyToDist = () => {
         });
     });
 
-    // Copy lib files to the distribution packages. These files are used in the offline-export.
-    ['jspdf.js', 'jspdf.src.js', 'svg2pdf.js', 'svg2pdf.src.js', 'canvg.js', 'canvg.src.js'].forEach((path) => {
+    // Copy lib files to the distribution packages. These files are used in the
+    // offline-export.
+    [
+        'canvg.js',
+        'canvg.src.js',
+        'jspdf.js',
+        'jspdf.src.js',
+        'rgbcolor.js',
+        'rgbcolor.src.js',
+        'svg2pdf.js',
+        'svg2pdf.src.js'
+    ].forEach((path) => {
         const content = fs.readFileSync(libFolder + path);
         ['highcharts', 'highstock', 'highmaps'].forEach((lib) => {
             U.writeFile(distFolder + lib + '/code/lib/' + path, content);
@@ -645,6 +706,22 @@ const downloadAllAPI = () => new Promise((resolve, reject) => {
  * @return {Promise} Returns a promise which resolves when scripts is finished.
  */
 const antDist = () => commandLine('ant dist');
+
+/**
+ * Gzip a single file.
+ * @param {string} file Path to input file.
+ * @param {string} output Path to where output the result.
+ * @return {undefined}
+ * TODO Promisify to use in dist task.
+ */
+const gzipFile = (file, output) => {
+    const zlib = require('zlib');
+    const fs = require('fs');
+    const gzip = zlib.createGzip();
+    const inp = fs.createReadStream(file);
+    const out = fs.createWriteStream(output);
+    inp.pipe(gzip).pipe(out);
+};
 
 gulp.task('create-productjs', createProductJS);
 gulp.task('clean-dist', cleanDist);

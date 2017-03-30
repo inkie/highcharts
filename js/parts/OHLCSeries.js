@@ -1,5 +1,5 @@
 /**
- * (c) 2010-2016 Torstein Honsi
+ * (c) 2010-2017 Torstein Honsi
  *
  * License: www.highcharts.com/license
  */
@@ -41,11 +41,13 @@ seriesType('ohlc', 'column', {
 		hover: {
 			lineWidth: 3
 		}
-	}
+	},
+	stickyTracking: true
 	//upColor: undefined
 	/*= } =*/
 
 }, /** @lends seriesTypes.ohlc */ {
+	directTouch: false,
 	pointArrayMap: ['open', 'high', 'low', 'close'], // array point configs are mapped to this
 	toYData: function (point) { // return a plain array for speedy calculation
 		return [point.open, point.high, point.low, point.close];
@@ -62,12 +64,20 @@ seriesType('ohlc', 'column', {
 	 * Postprocess mapping between options and SVG attributes
 	 */
 	pointAttribs: function (point, state) {
-		var attribs = seriesTypes.column.prototype.pointAttribs.call(this, point, state),
+		var attribs = seriesTypes.column.prototype.pointAttribs.call(
+				this,
+				point,
+				state
+			),
 			options = this.options;
 
 		delete attribs.fill;
 
-		if (point.open < point.close && options.upColor) {
+		if (
+			!point.options.color &&
+			options.upColor &&
+			point.open < point.close
+		) {
 			attribs.stroke = options.upColor;
 		}
 
@@ -82,18 +92,18 @@ seriesType('ohlc', 'column', {
 		var series = this,
 			yAxis = series.yAxis,
 			hasModifyValue = !!series.modifyValue,
-			translatedOLC = ['plotOpen', 'yBottom', 'plotClose'];
+			translated = ['plotOpen', 'plotHigh', 'plotLow', 'plotClose', 'yBottom']; // translate OHLC for
 
 		seriesTypes.column.prototype.translate.apply(series);
 
 		// Do the translation
 		each(series.points, function (point) {
-			each([point.open, point.low, point.close], function (value, i) {
+			each([point.open, point.high, point.low, point.close, point.low], function (value, i) {
 				if (value !== null) {
 					if (hasModifyValue) {
 						value = series.modifyValue(value);
 					}
-					point[translatedOLC[i]] = yAxis.toPixels(value, true);
+					point[translated[i]] = yAxis.toPixels(value, true);
 				}
 			});
 		});

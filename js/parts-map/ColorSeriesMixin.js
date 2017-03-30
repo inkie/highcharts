@@ -1,5 +1,5 @@
 /**
- * (c) 2010-2016 Torstein Honsi
+ * (c) 2010-2017 Torstein Honsi
  *
  * License: www.highcharts.com/license
  */
@@ -19,7 +19,7 @@ H.colorPointMixin = {
 	 * Color points have a value option that determines whether or not it is a null point
 	 */
 	isValid: function () {
-		return H.isNumber(this.value);
+		return this.value !== null;
 	},
 
 	/**

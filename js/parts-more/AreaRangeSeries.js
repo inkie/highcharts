@@ -1,5 +1,5 @@
 /**
- * (c) 2010-2016 Torstein Honsi
+ * (c) 2010-2017 Torstein Honsi
  *
  * License: www.highcharts.com/license
  */
@@ -125,7 +125,7 @@ seriesType('arearange', 'area', {
 			linePath,
 			lowerPath,
 			options = this.options,
-			connectEnds = options.connectEnds !== false,
+			connectEnds = this.chart.polar && options.connectEnds !== false,
 			step = options.step,
 			higherPath,
 			higherAreaPath;

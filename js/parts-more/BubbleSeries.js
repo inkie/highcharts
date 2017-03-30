@@ -1,5 +1,5 @@
 /**
- * (c) 2010-2016 Torstein Honsi
+ * (c) 2010-2017 Torstein Honsi
  *
  * License: www.highcharts.com/license
  */
@@ -51,7 +51,7 @@ seriesType('bubble', 'scatter', {
 				radiusPlus: 0
 			}
 		},
-		symbol: 'circle' // docs: new option
+		symbol: 'circle'
 	},
 	minSize: 8,
 	maxSize: '20%',
@@ -204,11 +204,11 @@ seriesType('bubble', 'scatter', {
 
 			if (isNumber(radius) && radius >= this.minPxSize / 2) {
 				// Shape arguments
-				point.marker = {
+				point.marker = H.extend(point.marker, {
 					radius: radius,
 					width: 2 * radius,
 					height: 2 * radius
-				};
+				});
 
 				// Alignment box for the data label
 				point.dlBox = {
@@ -232,7 +232,7 @@ seriesType('bubble', 'scatter', {
 	haloPath: function (size) {
 		return Point.prototype.haloPath.call(
 			this, 
-			size === 0 ? 0 : this.marker.radius + size // #6067
+			size === 0 ? 0 : (this.marker ? this.marker.radius || 0 : 0) + size // #6067
 		);
 	},
 	ttBelow: false
